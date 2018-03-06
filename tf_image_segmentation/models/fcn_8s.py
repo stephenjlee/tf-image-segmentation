@@ -9,7 +9,6 @@ slim = tf.contrib.slim
 from preprocessing.vgg_preprocessing import _R_MEAN, _G_MEAN, _B_MEAN
 
 
-
 def FCN_8s(image_batch_tensor,
            number_of_classes,
            is_training):
@@ -59,7 +58,7 @@ def FCN_8s(image_batch_tensor,
                                                             number_of_classes=number_of_classes)
 
     upsample_filter_factor_8_np = bilinear_upsample_weights(factor=8,
-                                                             number_of_classes=number_of_classes)
+                                                            number_of_classes=number_of_classes)
 
     upsample_filter_factor_2_tensor = tf.constant(upsample_filter_factor_2_np)
     upsample_filter_factor_8_tensor = tf.constant(upsample_filter_factor_8_np)
@@ -78,17 +77,15 @@ def FCN_8s(image_batch_tensor,
                                                        spatial_squeeze=False,
                                                        fc_conv_padding='SAME')
 
-
             last_layer_logits_shape = tf.shape(last_layer_logits)
 
-
             # Calculate the ouput size of the upsampled tensor
-            last_layer_upsampled_by_factor_2_logits_shape = tf.pack([
-                                                                  last_layer_logits_shape[0],
-                                                                  last_layer_logits_shape[1] * 2,
-                                                                  last_layer_logits_shape[2] * 2,
-                                                                  last_layer_logits_shape[3]
-                                                                 ])
+            last_layer_upsampled_by_factor_2_logits_shape = tf.stack([
+                last_layer_logits_shape[0],
+                last_layer_logits_shape[1] * 2,
+                last_layer_logits_shape[2] * 2,
+                last_layer_logits_shape[3]
+            ])
 
             # Perform the upsampling
             last_layer_upsampled_by_factor_2_logits = tf.nn.conv2d_transpose(last_layer_logits,
@@ -97,7 +94,7 @@ def FCN_8s(image_batch_tensor,
                                                                              strides=[1, 2, 2, 1])
 
             ## Adding the skip here for FCN-16s model
-            
+
             # We created vgg in the fcn_8s name scope -- so
             # all the vgg endpoints now are prepended with fcn_8s name
             pool4_features = end_points['fcn_8s/vgg_16/pool4']
@@ -116,29 +113,26 @@ def FCN_8s(image_batch_tensor,
             fused_last_layer_and_pool4_logits = pool4_logits + last_layer_upsampled_by_factor_2_logits
 
             fused_last_layer_and_pool4_logits_shape = tf.shape(fused_last_layer_and_pool4_logits)
-            
-            
-            
 
             # Calculate the ouput size of the upsampled tensor
-            fused_last_layer_and_pool4_upsampled_by_factor_2_logits_shape = tf.pack([
-                                                                          fused_last_layer_and_pool4_logits_shape[0],
-                                                                          fused_last_layer_and_pool4_logits_shape[1] * 2,
-                                                                          fused_last_layer_and_pool4_logits_shape[2] * 2,
-                                                                          fused_last_layer_and_pool4_logits_shape[3]
-                                                                         ])
+            fused_last_layer_and_pool4_upsampled_by_factor_2_logits_shape = tf.stack([
+                fused_last_layer_and_pool4_logits_shape[0],
+                fused_last_layer_and_pool4_logits_shape[1] * 2,
+                fused_last_layer_and_pool4_logits_shape[2] * 2,
+                fused_last_layer_and_pool4_logits_shape[3]
+            ])
 
             # Perform the upsampling
-            fused_last_layer_and_pool4_upsampled_by_factor_2_logits = tf.nn.conv2d_transpose(fused_last_layer_and_pool4_logits,
-                                                                        upsample_filter_factor_2_tensor,
-                                                                        output_shape=fused_last_layer_and_pool4_upsampled_by_factor_2_logits_shape,
-                                                                        strides=[1, 2, 2, 1])
-            
-            
+            fused_last_layer_and_pool4_upsampled_by_factor_2_logits = tf.nn.conv2d_transpose(
+                fused_last_layer_and_pool4_logits,
+                upsample_filter_factor_2_tensor,
+                output_shape=fused_last_layer_and_pool4_upsampled_by_factor_2_logits_shape,
+                strides=[1, 2, 2, 1])
+
             ## Adding the skip here for FCN-8s model
 
             pool3_features = end_points['fcn_8s/vgg_16/pool3']
-            
+
             # We zero initialize the weights to start training with the same
             # accuracy that we ended training FCN-32s
 
@@ -149,38 +143,34 @@ def FCN_8s(image_batch_tensor,
                                        normalizer_fn=None,
                                        weights_initializer=tf.zeros_initializer,
                                        scope='pool3_fc')
-            
-            
+
             fused_last_layer_and_pool4_logits_and_pool_3_logits = pool3_logits + \
-                                            fused_last_layer_and_pool4_upsampled_by_factor_2_logits
-            
-            
-            fused_last_layer_and_pool4_logits_and_pool_3_logits_shape = tf.shape(fused_last_layer_and_pool4_logits_and_pool_3_logits)
-            
-            
+                                                                  fused_last_layer_and_pool4_upsampled_by_factor_2_logits
+
+            fused_last_layer_and_pool4_logits_and_pool_3_logits_shape = tf.shape(
+                fused_last_layer_and_pool4_logits_and_pool_3_logits)
+
             # Calculate the ouput size of the upsampled tensor
-            fused_last_layer_and_pool4_logits_and_pool_3_upsampled_by_factor_8_logits_shape = tf.pack([
-                                                                          fused_last_layer_and_pool4_logits_and_pool_3_logits_shape[0],
-                                                                          fused_last_layer_and_pool4_logits_and_pool_3_logits_shape[1] * 8,
-                                                                          fused_last_layer_and_pool4_logits_and_pool_3_logits_shape[2] * 8,
-                                                                          fused_last_layer_and_pool4_logits_and_pool_3_logits_shape[3]
-                                                                         ])
+            fused_last_layer_and_pool4_logits_and_pool_3_upsampled_by_factor_8_logits_shape = tf.stack([
+                fused_last_layer_and_pool4_logits_and_pool_3_logits_shape[0],
+                fused_last_layer_and_pool4_logits_and_pool_3_logits_shape[1] * 8,
+                fused_last_layer_and_pool4_logits_and_pool_3_logits_shape[2] * 8,
+                fused_last_layer_and_pool4_logits_and_pool_3_logits_shape[3]
+            ])
 
             # Perform the upsampling
-            fused_last_layer_and_pool4_logits_and_pool_3_upsampled_by_factor_8_logits = tf.nn.conv2d_transpose(fused_last_layer_and_pool4_logits_and_pool_3_logits,
-                                                                        upsample_filter_factor_8_tensor,
-                                                                        output_shape=fused_last_layer_and_pool4_logits_and_pool_3_upsampled_by_factor_8_logits_shape,
-                                                                        strides=[1, 8, 8, 1])
-            
-            
-            
-            
+            fused_last_layer_and_pool4_logits_and_pool_3_upsampled_by_factor_8_logits = tf.nn.conv2d_transpose(
+                fused_last_layer_and_pool4_logits_and_pool_3_logits,
+                upsample_filter_factor_8_tensor,
+                output_shape=fused_last_layer_and_pool4_logits_and_pool_3_upsampled_by_factor_8_logits_shape,
+                strides=[1, 8, 8, 1])
+
             fcn_16s_variables_mapping = {}
 
             fcn_8s_variables = slim.get_variables(fcn_8s_scope)
 
             for variable in fcn_8s_variables:
-                
+
                 # We only need FCN-16s variables to resture from checkpoint
                 # Variables of FCN-8s should be initialized
                 if 'pool3_fc' in variable.name:
@@ -188,7 +178,8 @@ def FCN_8s(image_batch_tensor,
 
                 # Here we remove the part of a name of the variable
                 # that is responsible for the current variable scope
-                original_fcn_16s_checkpoint_string = 'fcn_16s/' +  variable.name[len(fcn_8s_scope.original_name_scope):-2]
+                original_fcn_16s_checkpoint_string = 'fcn_16s/' + variable.name[
+                                                                  len(fcn_8s_scope.original_name_scope):-2]
                 fcn_16s_variables_mapping[original_fcn_16s_checkpoint_string] = variable
 
     return fused_last_layer_and_pool4_logits_and_pool_3_upsampled_by_factor_8_logits, fcn_16s_variables_mapping
